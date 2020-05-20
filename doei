@@ -42,10 +42,10 @@ $list = $window->add("ibuttons", "Listbox",
             $mqtt->publish("revspace-local/doorduino/doei/unlocked", $ibutton);
             $ui->dialog(
                 -message => "$ibutton is uitgecheckt",
-                -title => "Nou dag he",
+                -title => "OK DOEI",
                 -titlereverse => 0,
                 -buttons => [
-                    {-label => '[OK, DOEI]', -value => 1},
+                    {-label => '[Druk op Enter]', -value => 1},
                 ],
             );
         }
