@@ -11,7 +11,7 @@ use Curses;
 use Curses::UI 0.9608;
 use Net::MQTT::Simple;
 
-my $mqtt = Net::MQTT::Simple->new("test.mosquitto.org");
+my $mqtt = Net::MQTT::Simple->new("localhost");
 
 my $ui = Curses::UI->new(-compat => 0, -color_support => 1);
 my $window = $ui->add(undef,  'Window');
