@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 use strict;
+use experimental qw(signatures);
 no warnings;
+
 {
     # Force Curses::UI to use high resolution timer, because mqtt
     # doesn't work reliably with full-second intervals.
@@ -11,62 +13,122 @@ use Curses;
 use Curses::UI 0.9608;
 use Net::MQTT::Simple;
 
-my $mqtt = Net::MQTT::Simple->new("gateway");
+{
+    # Never use reverse video for window titles, because that's confusing when
+    # there's also a listbox lightbar.
+    my $orig_new = \&Curses::UI::Widget::new;
+    *Curses::UI::Widget::new = sub {
+        push @_, -titlereverse => 0;
+        goto &$orig_new;
+    };
+}
+
+
+my $mqtt = Net::MQTT::Simple->new("test.mosquitto.org");
 
 my $ui = Curses::UI->new(-compat => 0, -color_support => 1);
-my $window = $ui->add(undef,  'Window');
-my $in_modal = 0;
+$SIG{__DIE__} = sub { $ui->dialog(-message => @_); exit; };
 
-my $list;
-$list = $window->add("ibuttons", "Listbox",
-    -title => "iButton geforceerd uitchecken",
-    -border => 1,
-    -pad => 1,
-    -ipadleft => 1,
-    -ipadright => 1,
-    -values => [ ],
-    -onchange => sub {
-        my ($self) = @_;
-        my $ibutton = $self->get or return;
+my $window = $ui->add(undef,  'Window');
+
+sub check_out($ibutton) {
+    $ui->dialog(
+        -message => "Weet je zeker dat $ibutton weg is?",
+        -title => "Bevestiging",
+        -buttons => [
+            { -label => '[Nee, toch niet]', -value => 0 },
+            { -label => '[Ja, doei!]', -value => 1 },
+        ],
+    ) or return;
+
+    $mqtt->publish("revspace-local/doorduino/doei/unlocked", $ibutton);
+
+    $ui->dialog(
+        -title => "OK DOEI",
+        -message => "$ibutton is uitgecheckt",
+        -buttons => [
+            { -label => '[Druk op Enter]', -value => 1 },
+        ],
+    );
+}
+
+sub check_in() {
+    my $naam = $ui->question(
+        -title        => "Wat is JOUW nickname?",
+        -question     => "Voer je eigen nickname in.\n"
+            . "Let op: spel je nickname EXACT zoals ie ook in de doorduino staat!\n"
+            . "De naam die je invoert wordt gebruikt zonder enige verificatie.",
+    ) // return;
+
+    if ($naam !~ /^(?:[A-Za-z0-9_-]++)\z/) {
+        $ui->dialog(-message => "Ongeldige naam.");
+        return;
+    }
+
+    $ui->dialog(
+        -title => "Verklaring",
+        -message =>
+            " 1. Ik ben $naam.\n" .
+            " 2. Ik weet zeker dat ik met die naam in de doorduino sta.\n" .
+            " 3. Ik ben officieel deelnemer van RevSpace.\n" .
+            " 4. Ik ben *nu* aanwezig op de space.\n" .
+            " 5. Ik ben mijn iButton vergeten.",
+        -buttons => [
+            { -label => '[Nee, toch niet]', -value => 0 },
+            { -label => "[Ja, echt waar]",  -value => 1 },
+        ],
+    ) or return;
+
+    $mqtt->publish("revspace-local/doorduino/ibutton-vergeten/unlocked", $naam);
+
+    $ui->dialog(
+        -title        => "Hallo!",
+        -message      => "Let op: als je je iButton KWIJT bent,\n"
+            . "meld het dan meteen aan board\@revspace.nl!\n\n"
+            . "Als alles goed is gegaan, ben je nu ingecheckt."
+    );
+}
+
+my $list = $window->add( "ibuttons", "Listbox",
+    -title        => "iButton handmatig uitchecken of inchecken",
+    -border       => 1,
+    -pad          => 1,
+    -ipadleft     => 1,
+    -ipadright    => 1,
+    -values       => [qw(screenshot zonder namen want privacy)],
+    -vscrollbar   => 'right',
+    -onchange     => sub ($self) {
+        my $value = $self->get or return;
         $self->clear_selection;
-        my $answer = $ui->dialog(
-            -message => "Weet je zeker dat $ibutton weg is?",
-            -title => "Bevestiging",
-            -titlereverse => 0,
-            -buttons => [
-                {-label => '[Nee, toch niet]', -value => 0},
-                {-label => '[Ja, doei!]', -value => 1},
-            ],
-        );
-        if ($answer) {
-            $mqtt->publish("revspace-local/doorduino/doei/unlocked", $ibutton);
-            $ui->dialog(
-                -message => "$ibutton is uitgecheckt",
-                -title => "OK DOEI",
-                -titlereverse => 0,
-                -buttons => [
-                    {-label => '[Druk op Enter]', -value => 1},
-                ],
-            );
-        }
+
+        check_out $1 if $value =~ /^uitchecken: (.*)/;
+        check_in     if $value =~ /^inchecken:/;
     },
-    -titlereverse => 0,
-    -vscrollbar => 'right',
 );
+
+sub update_list(@names) {
+    my $selected = $list->get_active_value;
+
+    my @values =
+        map { "uitchecken: $_" }
+        sort { lc($a) cmp lc($b) }
+        @names;
+
+    push @values, "inchecken: jezelf (iButton vergeten)";
+    $list->values(\@values);
+
+    for (0..$#values) {
+        $list->{-ypos} = $_ if $values[$_] eq $selected;
+    }
+}
 
 $mqtt->subscribe(
-    "revspace-local/doorduino/checked-in" => sub {
-        my ($topic, $message) = @_;
-        my $selected = $list->get_active_value;
-
-        my @names = sort { lc($a) cmp lc($b) } split " ", $message;
-        $list->values(\@names);
-
-        for (0..$#names) {
-            $list->{-ypos} = $_ if $names[$_] eq $selected;
-        }
+    "revspace-local/doorduino/checked-in" => sub ($, $message, $) {
+        update_list(split " ", $message);
     },
 );
+
+update_list();
 
 $ui->set_binding(sub { exit }, $_) for 'q', 'Q', "\e";
 
