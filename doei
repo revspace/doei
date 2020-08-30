@@ -24,7 +24,7 @@ use Net::MQTT::Simple;
 }
 
 
-my $mqtt = Net::MQTT::Simple->new("test.mosquitto.org");
+my $mqtt = Net::MQTT::Simple->new("mosquitto.space.revspace.nl");
 
 my $ui = Curses::UI->new(-compat => 0, -color_support => 1);
 $SIG{__DIE__} = sub { $ui->dialog(-message => @_); exit; };
@@ -68,14 +68,13 @@ sub check_in() {
     $ui->dialog(
         -title => "Verklaring",
         -message =>
-            " 1. Ik ben $naam.\n" .
-            " 2. Ik weet zeker dat ik met die naam in de doorduino sta.\n" .
-            " 3. Ik ben officieel deelnemer van RevSpace.\n" .
-            " 4. Ik ben *nu* aanwezig op de space.\n" .
-            " 5. Ik ben mijn iButton vergeten.",
+            "   1. Ik ($naam) ben officieel deelnemer van RevSpace.\n" .
+            "en 2. Ik weet zeker dat ik met die naam in de doorduino sta.\n" .
+            "en 3. Ik ben *nu* aanwezig op de space.\n" .
+            "en 4. Ik ben mijn iButton vergeten.",
         -buttons => [
             { -label => '[Nee, toch niet]', -value => 0 },
-            { -label => "[Ja, echt waar]",  -value => 1 },
+            { -label => "[Ja, alle 4 waar]",  -value => 1 },
         ],
     ) or return;
 
