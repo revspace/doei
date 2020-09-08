@@ -88,6 +88,20 @@ sub check_in() {
     );
 }
 
+sub tijd {
+    my ($timestamp) = @_;
+
+    my $seconds = time() - $timestamp;
+    return sprintf "%d uur", $seconds / 3600   if $seconds > 3600;
+    return sprintf "%d minuten", $seconds / 60 if $seconds > 120;
+    return sprintf "net ingecheckt";
+}
+
+sub tijdloos($string) {
+    # Vieze manier om ze vergelijkbaar te maken
+    return $string =~ s/\d+ (?:uur|minuten)|net ingecheckt//r;
+}
+
 my $list = $window->add( "ibuttons", "Listbox",
     -title        => "iButton handmatig uitchecken of inchecken",
     -border       => 1,
@@ -100,37 +114,41 @@ my $list = $window->add( "ibuttons", "Listbox",
         my $value = $self->get or return;
         $self->clear_selection;
 
-        check_out $1 if $value =~ /^uitchecken: (.*)/;
+        check_out $1 if $value =~ /^uitchecken: (\S+)/;
         check_in     if $value =~ /^inchecken:/;
     },
 );
 
-sub update_list(@names) {
+my %timestamps;
+sub update_list {
     my $selected = $list->get_active_value;
 
     my @values =
-        map { "uitchecken: $_" }
-        sort { lc($a) cmp lc($b) }
-        @names;
+        map { sprintf "uitchecken: %-20s %s", $_, tijd($timestamps{$_}) }
+        sort { $timestamps{$a} <=> $timestamps{$b} }
+        keys %timestamps;
 
     push @values, "inchecken: jezelf (iButton vergeten)";
     $list->values(\@values);
 
     for (0..$#values) {
-        $list->{-ypos} = $_ if $values[$_] eq $selected;
+        $list->{-ypos} = $_ if tijdloos($values[$_]) eq tijdloos($selected);
     }
 }
 
 $mqtt->subscribe(
-    "revspace-local/doorduino/checked-in" => sub ($, $message, $) {
-        update_list(split " ", $message);
+    "revspace-local/doorduino/checked-in/unixtime" => sub ($, $message, $) {
+       %timestamps = split " ", $message;
+       update_list;
     },
 );
 
-update_list();
+update_list;
 
 $ui->set_binding(sub { exit }, $_) for 'q', 'Q', "\e";
 
 $ui->set_timer("mqtt", sub { $mqtt->tick(.05) }, .1);
+
+$ui->set_timer("update", \&update_list, 5);
 
 $ui->mainloop;
