@@ -92,14 +92,13 @@ sub tijd {
     my ($timestamp) = @_;
 
     my $seconds = time() - $timestamp;
-    return sprintf "%d uur", $seconds / 3600   if $seconds > 3600;
-    return sprintf "%d minuten", $seconds / 60 if $seconds > 120;
+    return sprintf "%dh %dm", $seconds / 3600, ($seconds % 3600) / 60 if $seconds > 120;
     return sprintf "net ingecheckt";
 }
 
 sub tijdloos($string) {
     # Vieze manier om ze vergelijkbaar te maken
-    return $string =~ s/\d+ (?:uur|minuten)|net ingecheckt//r;
+    return $string =~ s/\d+h \d+m|net ingecheckt//r;
 }
 
 my $list = $window->add( "ibuttons", "Listbox",
