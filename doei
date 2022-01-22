@@ -41,7 +41,7 @@ sub check_out($ibutton) {
         ],
     ) or return;
 
-    $mqtt->publish("revspace-local/doorduino/doei/unlocked", $ibutton);
+    $mqtt->publish("revspace-local/doorduino/doeidoei/unlocked", $ibutton);
 
     $ui->dialog(
         -title => "OK DOEI",
