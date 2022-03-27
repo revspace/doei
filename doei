@@ -44,17 +44,14 @@ sub check_out($ibutton) {
     ) or return;
 
     $mqtt->publish("revspace-local/doorduino/doeidoei/unlocked", $ibutton);
-
-    $ui->dialog(
-        -title => "OK DOEI",
-        -message => "$ibutton is uitgecheckt",
-        -buttons => [
-            { -label => '[Druk op Enter]', -value => 1 },
-        ],
-    );
 }
 
 sub check_in() {
+    $ui->dialog(
+        -title        => "Waarschuwing!",
+        -message      => "Let op: als je je iButton KWIJT bent,\n"
+            . "meld het dan meteen aan board\@revspace.nl!\n\n"
+    );
     my $naam = $ui->question(
         -title        => "Wat is JOUW nickname?",
         -question     => "Voer je eigen nickname in.\n"
@@ -81,13 +78,35 @@ sub check_in() {
     ) or return;
 
     $mqtt->publish("revspace-local/doorduino/ibutton-vergeten/unlocked", $naam);
+}
 
-    $ui->dialog(
-        -title        => "Hallo!",
-        -message      => "Let op: als je je iButton KWIJT bent,\n"
-            . "meld het dan meteen aan board\@revspace.nl!\n\n"
-            . "Als alles goed is gegaan, ben je nu ingecheckt."
+sub check_in_guest() {
+    my $naam = $ui->question(
+        -title        => "Wie is daar?",
+        -question     => "Voer de nickname van de gast in\n"
+    ) // return;
+    $naam =~ s/\s/_/g;
+
+    if ($naam !~ /^(?:[A-Za-z0-9_-]++)\z/) {
+        $ui->dialog(-message => "Ongeldige naam.");
+        return;
+    }
+
+    my $opt_in = $ui->dialog(
+        -title => "Opt-in",
+        -message => "Geeft de gast toestemming om dies nickname openbaar te\n"
+            . "vermelden zodat iedereen kan zien dat die op de space is?\n\n"
+            . "Op de space en in de logs is de naam sowieso zichtbaar.",
+        -buttons => [
+            { -label => "[Ja]",  -value => 1 },
+            { -label => '[Nee]', -value => 0 },
+            { -label => '[Annuleren]', -value => -999 },
+        ],
     );
+    return if $opt_in < 0;
+
+    $naam =~ s/^/./ if not $opt_in;
+    $mqtt->publish("revspace-local/doorduino/hoi/unlocked", "+$naam");
 }
 
 sub tijd {
@@ -115,8 +134,9 @@ my $list = $window->add( "ibuttons", "Listbox",
         my $value = $self->get or return;
         $self->clear_selection;
 
-        check_out $1 if $value =~ /^uitchecken: (\S+)/;
-        check_in     if $value =~ /^inchecken:/;
+        check_out $1   if $value =~ /^uitchecken: (\S+)/;
+        check_in       if $value =~ /^inchecken: jezelf/;
+        check_in_guest if $value =~ /^inchecken: gast/;
     },
 );
 
@@ -130,6 +150,7 @@ sub update_list {
         keys %timestamps;
 
     push @values, "inchecken: jezelf (iButton vergeten)";
+    push @values, "inchecken: gast";
     $list->values(\@values);
 
     for (0..$#values) {
