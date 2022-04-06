@@ -72,7 +72,7 @@ sub check_in() {
             "en 3. Ik ben *nu* aanwezig op de space.",
         -buttons => [
             { -label => '[Nee, toch niet]', -value => 0 },
-            { -label => "[Ja, alle 4 waar]",  -value => 1 },
+            { -label => "[Ja, alle 3 waar]",  -value => 1 },
         ],
     ) or return;
 
