@@ -69,8 +69,7 @@ sub check_in() {
         -message =>
             "   1. Ik ($naam) ben officieel deelnemer van RevSpace.\n" .
             "en 2. Ik weet zeker dat ik met die naam in de doorduino sta.\n" .
-            "en 3. Ik ben *nu* aanwezig op de space.\n" .
-            "en 4. Ik ben mijn iButton vergeten.",
+            "en 3. Ik ben *nu* aanwezig op de space.",
         -buttons => [
             { -label => '[Nee, toch niet]', -value => 0 },
             { -label => "[Ja, alle 4 waar]",  -value => 1 },
