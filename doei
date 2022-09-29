@@ -53,9 +53,9 @@ sub check_in() {
             . "meld het dan meteen aan board\@revspace.nl!\n\n"
     );
     my $naam = $ui->question(
-        -title        => "Wat is JOUW nickname?",
-        -question     => "Voer je eigen nickname in.\n"
-            . "Let op: spel je nickname EXACT zoals ie ook in de doorduino staat!\n"
+        -title        => "Wie dan?",
+        -question     => "Voer de nickname van de deelnemer in.\n"
+            . "Let op: spel de nickname EXACT zoals ie ook in de doorduino staat!\n"
             . "De naam die je invoert wordt gebruikt zonder enige verificatie.",
     ) // return;
 
