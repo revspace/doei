@@ -67,9 +67,10 @@ sub check_in() {
     $ui->dialog(
         -title => "Verklaring",
         -message =>
-            "   1. Ik ($naam) ben officieel deelnemer van RevSpace.\n" .
-            "en 2. Ik weet zeker dat ik met die naam in de doorduino sta.\n" .
-            "en 3. Ik ben *nu* aanwezig op de space.",
+            "$naam is:\n" .
+            "   1. Deelnemer van Stichting Revelation Space.\n" .
+            "en 2. *Nu* aanwezig op de space.\n" .
+            "en 3. Exact dezelfde spelling als in de doorduino.",
         -buttons => [
             { -label => '[Nee, toch niet]', -value => 0 },
             { -label => "[Ja, alle 3 waar]",  -value => 1 },
@@ -134,7 +135,7 @@ my $list = $window->add( "ibuttons", "Listbox",
         $self->clear_selection;
 
         check_out $1   if $value =~ /^uitchecken: (\S+)/;
-        check_in       if $value =~ /^inchecken: jezelf/;
+        check_in       if $value =~ /^inchecken: deelnemer/;
         check_in_guest if $value =~ /^inchecken: gast/;
     },
 );
@@ -148,7 +149,7 @@ sub update_list {
         sort { $timestamps{$a} <=> $timestamps{$b} }
         keys %timestamps;
 
-    push @values, "inchecken: jezelf (iButton vergeten)";
+    push @values, "inchecken: deelnemer (iButton vergeten)";
     push @values, "inchecken: gast";
     $list->values(\@values);
 
